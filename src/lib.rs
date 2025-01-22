@@ -1,7 +1,7 @@
 use std::{fs::File, sync::Arc, time::Duration};
 
 use pyo3::{exceptions::PyException, prelude::*};
-use rodio::{decoder, OutputStream, Sink, Source};
+use rodio::{decoder, OutputStream, Sink};
 
 macro_rules! to_pyException {
     ($result:expr) => {
@@ -26,21 +26,22 @@ impl Player {
     #[new]
     pub fn new() -> PyResult<Self> {
         let (stream, stream_handle) = to_pyException!(OutputStream::try_default())?;
-
         let sink = to_pyException!(Sink::try_new(&stream_handle.clone()))?;
-
         Ok(Self {
             sink,
             _stream: Some(Arc::new(SafeOutputStream(stream))),
         })
     }
 
-    pub fn play(&self, path: &str) -> PyResult<u128> {
+    pub fn play(&self, path: &str) -> PyResult<()> {
         let file = File::open(path)?;
         let source = to_pyException!(decoder::Decoder::new(file))?;
-        let duration = source.total_duration().unwrap();
         self.sink.append(source);
-        Ok(duration.as_millis())
+        Ok(())
+    }
+
+    pub fn sleep_until_end(&self) {
+        self.sink.sleep_until_end();
     }
 
     pub fn pause(&self) {
@@ -51,8 +52,9 @@ impl Player {
         self.sink.is_paused()
     }
 
-    pub fn seek(&self, pos: Duration) -> PyResult<()> {
-        to_pyException!(self.sink.try_seek(pos))?;
+    pub fn seek(&self, pos: u64) -> PyResult<()> {
+        let duration = Duration::from_millis(pos);
+        to_pyException!(self.sink.try_seek(duration))?;
         Ok(())
     }
 

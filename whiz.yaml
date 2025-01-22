@@ -1,0 +1,5 @@
+dev:
+  workdir: "."
+  command: |
+    source ../.venv/bin/activate
+    maturin develop
