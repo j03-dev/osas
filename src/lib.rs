@@ -1,7 +1,7 @@
 use std::{fs::File, sync::Arc, time::Duration};
 
 use pyo3::{exceptions::PyException, prelude::*};
-use rodio::{decoder, OutputStream, Sink, Source};
+use rodio::{decoder, OutputStream, Sink};
 
 macro_rules! to_pyException {
     ($result:expr) => {
@@ -18,7 +18,6 @@ unsafe impl Sync for SafeOutputStream {}
 #[pyclass]
 struct Player {
     sink: Arc<Sink>,
-    current_source: Option<Arc<File>>,
     _stream: Option<Arc<SafeOutputStream>>,
 }
 
@@ -30,25 +29,15 @@ impl Player {
         let sink = Arc::new(to_pyException!(Sink::try_new(&stream_handle.clone()))?);
         Ok(Self {
             sink,
-            current_source: None,
             _stream: Some(Arc::new(SafeOutputStream(stream))),
         })
     }
 
     pub fn play(&mut self, path: &str) -> PyResult<()> {
-        let file = Arc::new(File::open(path)?);
-        self.current_source = Some(file.clone());
+        let file = File::open(path)?;
         let source = to_pyException!(decoder::Decoder::new(file))?;
         self.sink.append(source);
         Ok(())
-    }
-
-    pub fn get_duration(&self) -> PyResult<Option<u128>> {
-        if let Some(source) = self.current_source.clone() {
-            let duration = to_pyException!(decoder::Decoder::new(source))?.total_duration();
-            return Ok(duration.map(|d| d.as_millis()));
-        }
-        Ok(None)
     }
 
     pub fn sleep_until_end(&self) {
