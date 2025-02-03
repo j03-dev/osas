@@ -26,7 +26,7 @@ impl Player {
     #[new]
     pub fn new() -> PyResult<Self> {
         let (stream, stream_handle) = to_pyException!(OutputStream::try_default())?;
-        let sink = Arc::new(to_pyException!(Sink::try_new(&stream_handle.clone()))?);
+        let sink = Arc::new(to_pyException!(Sink::try_new(&stream_handle))?);
         Ok(Self {
             sink,
             _stream: Some(Arc::new(SafeOutputStream(stream))),
